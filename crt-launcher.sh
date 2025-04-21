@@ -86,18 +86,6 @@ fi
 # Proceed with container workflow
 # ------------------------
 
-# Create temp directory and ensure cleanup on exit
-TMPDIR=$(mktemp -d)
-echo "📁 Created temp directory: $TMPDIR"
-
-cleanup() {
-    echo "🧹 Cleaning up temporary files..."
-    rm -rf "$TMPDIR"
-}
-trap cleanup EXIT
-
-cd "$TMPDIR" || exit
-
 # Ask how to load image
 echo "📦 How would you like to load the image?"
 echo "1) Download from URL"
@@ -160,7 +148,7 @@ read -p "📁 Enter absolute path to webmon lib folder (host) eg. /Users/youruse
 echo "⚙️  Summary:"
 echo "   Runtime: $RUNTIME"
 echo "   Image SHA: $IMAGE_NAME"
-echo "   Webmon Repo: $WEBMON_REPO
+echo "   Webmon Repo: $WEBMON_REPO"
 echo "   Webmon Lib: $WEBMON_LIB"
 
 read -p "Proceed to run the container? (y/n): " confirm_run
