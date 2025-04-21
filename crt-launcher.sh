@@ -166,6 +166,7 @@ echo "🚀 Running container with port mapping $HOST_PORT:$CONTAINER_PORT..."
 if $RUNTIME run -p "$HOST_PORT":"$CONTAINER_PORT" \
     -v "$WEBMON_REPO":/webmon \
     -v "$WEBMON_LIB":/prod_lib \
+    -e HOST_HOSTNAME="$(hostname)" \
     "$IMAGE_NAME"; then
     echo "✅ Container is running at http://localhost:$HOST_PORT"
 else
