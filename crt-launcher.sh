@@ -98,7 +98,7 @@ trap cleanup EXIT
 
 cd "$TMPDIR" || exit
 
-# Choose image source
+# Ask how to load image
 echo "📦 How would you like to load the image?"
 echo "1) Download from URL"
 echo "2) Use existing .tar file from local machine"
@@ -106,9 +106,20 @@ read -p "Enter your choice [1 or 2]: " IMAGE_SOURCE_CHOICE
 
 case "$IMAGE_SOURCE_CHOICE" in
     1)
+        # Create temp directory only if downloading
+        TMPDIR=$(mktemp -d)
+        echo "📁 Created temp directory: $TMPDIR"
+        cleanup() {
+            echo "🧹 Cleaning up temporary files..."
+            rm -rf "$TMPDIR"
+        }
+        trap cleanup EXIT
+
+        cd "$TMPDIR" || exit
         read -p "🌐 Enter the URL of the image tar file to download: " IMAGE_URL
         echo "📥 Downloading image..."
         wget "$IMAGE_URL" -O image.tar || { echo "❌ Failed to download image."; exit 1; }
+        TAR_FILE="$TMPDIR/image.tar"
         ;;
     2)
         read -p "📁 Enter full path to your local image tar file: " LOCAL_IMAGE_PATH
@@ -116,8 +127,7 @@ case "$IMAGE_SOURCE_CHOICE" in
             echo "❌ File does not exist: $LOCAL_IMAGE_PATH"
             exit 1
         fi
-        echo "📋 Copying $LOCAL_IMAGE_PATH to temporary directory..."
-        cp "$LOCAL_IMAGE_PATH" ./image.tar || { echo "❌ Failed to copy file."; exit 1; }
+        TAR_FILE="$LOCAL_IMAGE_PATH"
         ;;
     *)
         echo "❌ Invalid choice."
@@ -126,8 +136,8 @@ case "$IMAGE_SOURCE_CHOICE" in
 esac
 
 # Load image
-echo "📦 Loading image with $RUNTIME..."
-IMAGE_OUTPUT=$($RUNTIME load -i image.tar) || { echo "❌ Failed to load image."; exit 1; }
+echo "📦 Loading image with $RUNTIME from $TAR_FILE..."
+IMAGE_OUTPUT=$($RUNTIME load -i "$TAR_FILE") || { echo "❌ Failed to load image."; exit 1; }
 echo "$IMAGE_OUTPUT"
 
 # Extract image SHA ID
@@ -143,14 +153,14 @@ if [[ -z "$IMAGE_NAME" ]]; then
 fi
 
 # Prompt for volume paths
-read -p "📁 Enter absolute path to webmon repo (host): " WEBMON_REPO
-read -p "📁 Enter absolute path to webmon lib folder (host): " WEBMON_LIB
+read -p "📁 Enter absolute path to webmon repo (host) eg. /Users/yourusername/projects/web_mon: " WEBMON_REPO
+read -p "📁 Enter absolute path to webmon lib folder (host) eg. /Users/yourusername/builds/webmon/AdventNet/Sas/tomcat/webapps/ROOT/WEB-INF/lib/ : " WEBMON_LIB
 
 # Confirm summary
 echo "⚙️  Summary:"
 echo "   Runtime: $RUNTIME"
 echo "   Image SHA: $IMAGE_NAME"
-echo "   Webmon Repo: $WEBMON_REPO"
+echo "   Webmon Repo: $WEBMON_REPO
 echo "   Webmon Lib: $WEBMON_LIB"
 
 read -p "Proceed to run the container? (y/n): " confirm_run
@@ -163,12 +173,14 @@ CONTAINER_PORT=3000
 
 echo "🚀 Running container with port mapping $HOST_PORT:$CONTAINER_PORT..."
 
-if $RUNTIME run -p "$HOST_PORT":"$CONTAINER_PORT" \
+if $RUNTIME run -d -p "$HOST_PORT":"$CONTAINER_PORT" \
     -v "$WEBMON_REPO":/webmon \
     -v "$WEBMON_LIB":/prod_lib \
     -e HOST_HOSTNAME="$(hostname)" \
     "$IMAGE_NAME"; then
     echo "✅ Container is running at http://localhost:$HOST_PORT"
+    CONTAINER_ID=$($RUNTIME ps -q)
+    echo "🆔 Container ID: $CONTAINER_ID"
 else
     echo "❌ Failed to run container. Possible issues:"
     echo "   - Port $HOST_PORT may already be in use"
